@@ -1,0 +1,396 @@
+<title>MENA Displacement Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --page:#eef1f3; --surf:#ffffff; --surf2:#f6f8f9; --line:#dde3e7;
+  --ink:#101a22; --ink2:#4a5966; --mut:#7d8a94;
+  --accent:#eb6834; --accent-d:#c24d1e;
+  --b1:#e4eefb; --b2:#bcd8f6; --b3:#7fb0e8; --b4:#3f86dc; --b5:#2264b3; --b6:#123f77;
+  --conflict:#d84848;
+  --shadow:0 1px 2px rgba(16,26,34,.06),0 2px 8px rgba(16,26,34,.05);
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme: dark;
+  --page:#0d1114; --surf:#161c21; --surf2:#1c242a; --line:#2a343c;
+  --ink:#eef3f6; --ink2:#a7b4bd; --mut:#76838d;
+  --accent:#f6774a; --accent-d:#eb6834;
+  --b1:#17304e; --b2:#1d446f; --b3:#2a63a0; --b4:#3f86dc; --b5:#77abe6; --b6:#b9d5f4;
+  --conflict:#f06a6a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d1114; --surf:#161c21; --surf2:#1c242a; --line:#2a343c;
+  --ink:#eef3f6; --ink2:#a7b4bd; --mut:#76838d;
+  --accent:#f6774a; --accent-d:#eb6834;
+  --b1:#17304e; --b2:#1d446f; --b3:#2a63a0; --b4:#3f86dc; --b5:#77abe6; --b6:#b9d5f4;
+  --conflict:#f06a6a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);
+  font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px;padding-left:18px;padding-right:18px}
+h1,h2,h3{font-family:"Archivo",system-ui,sans-serif;margin:0;text-wrap:balance}
+.tnum{font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;justify-content:space-between;margin-bottom:18px}
+.brand .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-d);
+  background:color-mix(in srgb,var(--accent) 14%,transparent);padding:3px 8px;border-radius:999px;margin-bottom:8px}
+.brand h1{font-size:23px;font-weight:800;letter-spacing:-.01em;line-height:1.05}
+.brand .sub{color:var(--ink2);font-size:12.5px;margin-top:4px}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.ctl label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);margin-bottom:6px}
+select{font:inherit;font-weight:600;color:var(--ink);background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 34px 9px 12px;appearance:none;cursor:pointer;box-shadow:var(--shadow);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237d8a94' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.seg{display:inline-flex;background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow);gap:2px}
+.seg button{font:inherit;font-weight:600;font-size:12.5px;color:var(--ink2);background:none;border:0;border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:focus-visible,select:focus-visible,.backbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.kpi .k{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.kpi .v{font-family:"Archivo",sans-serif;font-weight:800;font-size:30px;line-height:1.05;margin-top:6px;letter-spacing:-.02em}
+.kpi .v.small{font-size:18px}
+.kpi .n{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.kpi.accent .v{color:var(--accent-d)}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px 12px;box-shadow:var(--shadow)}
+.card h3{font-size:14.5px;font-weight:700}
+.card .ch{font-size:11.5px;color:var(--mut);margin-top:2px;margin-bottom:8px}
+.col{display:flex;flex-direction:column;gap:14px}
+.maphead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.crumb{font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.crumb b{color:var(--ink);font-weight:700}
+.crumb .lnk{color:var(--accent-d);cursor:pointer;font-weight:600}
+.backbtn{font:inherit;font-weight:600;font-size:12px;color:var(--ink);background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.hint{font-size:11px;color:var(--mut);font-style:italic}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;margin-top:8px;font-size:11px;color:var(--ink2)}
+.legend .sw{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.legend .rowr{display:flex;align-items:center;gap:5px}
+.foot{color:var(--mut);font-size:11px;margin-top:16px;line-height:1.5}
+.gpath{stroke:var(--surf);stroke-width:.7;transition:fill .15s,opacity .15s}
+.gpath.empty{fill:var(--surf2)}
+.gpath.click{cursor:pointer}
+.gpath.click:hover{opacity:.85}
+.arc{fill:none;stroke:var(--accent);opacity:.92;stroke-linecap:round}
+.arc.ext{stroke:var(--accent);stroke-dasharray:1 5;opacity:.95}
+.intern{fill:color-mix(in srgb,var(--conflict) 16%,transparent);stroke:var(--conflict);stroke-width:1.4}
+.bar{fill:var(--b4);cursor:default}
+.barlab{fill:var(--ink);font-size:11.5px;font-weight:600}
+.barval{fill:var(--ink2);font-size:11px;font-weight:600}
+.axis{fill:var(--mut);font-size:10.5px}
+.tline{fill:none;stroke:var(--b4);stroke-width:2}
+.tarea{fill:color-mix(in srgb,var(--b4) 12%,transparent)}
+.tmark{fill:var(--surf);stroke:var(--b4);stroke-width:1.8}
+.tmark.on{fill:var(--accent);stroke:var(--accent)}
+#tip{position:fixed;pointer-events:none;z-index:50;background:var(--ink);color:var(--surf);font-size:11.5px;font-weight:500;padding:7px 9px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.28);opacity:0;transition:opacity .1s;max-width:230px}
+#tip b{font-weight:700}
+@media (max-width:820px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <span class="tag">IOM DTM · Rapid Displacement Tracking</span>
+      <h1>MENA Displacement Monitor</h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div class="controls">
+      <div class="ctl"><label for="country">Country</label><select id="country"></select></div>
+      <div class="ctl"><label>Time period</label>
+        <div class="seg" id="period" role="group" aria-label="Time period">
+          <button data-p="1" aria-pressed="false">Last week</button>
+          <button data-p="2" aria-pressed="false">Last 2 wks</button>
+          <button data-p="3" aria-pressed="false">Last 3 wks</button>
+          <button data-p="4" aria-pressed="true">Last 4 wks</button>
+          <button data-p="0" aria-pressed="false">Cumulative</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="maphead">
+        <div>
+          <h3>Displacement flows</h3>
+          <div class="crumb" id="crumb"></div>
+        </div>
+        <button class="backbtn" id="back" hidden>← All governorates</button>
+      </div>
+      <svg id="map" viewBox="0 0 600 440" aria-label="Displacement flow map"></svg>
+      <div class="legend">
+        <span class="rowr"><svg width="34" height="10"><defs><marker id="lgar" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="var(--accent)"/></marker></defs><line x1="2" y1="5" x2="26" y2="5" stroke="var(--accent)" stroke-width="3" marker-end="url(#lgar)"/></svg> top flows</span>
+        <span class="rowr"><span class="sw" style="background:color-mix(in srgb,var(--conflict) 16%,transparent);border:1.4px solid var(--conflict);border-radius:50%"></span> displaced within same area</span>
+        <span class="rowr"><span class="sw" style="background:var(--b2)"></span><span class="sw" style="background:var(--b4);margin-left:-8px"></span><span class="sw" style="background:var(--b6);margin-left:-8px"></span> received</span>
+        <span class="hint" id="drillhint">Tip: click a governorate to drill into its districts</span>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card"><h3 id="barh">By governorate</h3><div class="ch" id="barch"></div>
+        <svg id="bar" viewBox="0 0 380 300" aria-label="Bar chart"></svg></div>
+      <div class="card"><h3>Weekly trend</h3><div class="ch">Households displaced per week — selected period highlighted</div>
+        <svg id="trend" viewBox="0 0 380 190" aria-label="Weekly trend"></svg></div>
+    </div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+let DATA=null;
+const tip=document.getElementById('tip');
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+function showTip(h,e){tip.innerHTML=h;tip.style.opacity=1;moveTip(e);}
+function moveTip(e){const p=12;let x=e.clientX+p,y=e.clientY+p;const r=tip.getBoundingClientRect();
+  if(x+r.width>innerWidth-6)x=e.clientX-r.width-p; if(y+r.height>innerHeight-6)y=e.clientY-r.height-p;
+  tip.style.left=x+'px';tip.style.top=y+'px';}
+function hideTip(){tip.style.opacity=0;}
+
+let state={country:null,period:4,level:'gov',selGov:null};
+
+// controls
+const csel=document.getElementById('country');
+csel.addEventListener('change',()=>{state.country=csel.value;state.level='gov';state.selGov=null;render();});
+document.querySelectorAll('#period button').forEach(b=>b.addEventListener('click',()=>{
+  state.period=+b.dataset.p;document.querySelectorAll('#period button').forEach(x=>x.setAttribute('aria-pressed',x===b));render();}));
+document.getElementById('back').addEventListener('click',()=>{state.level='gov';state.selGov=null;render();});
+
+function selectedWeeks(D){const n=D.weeks.length;return state.period===0?D.perweek:D.perweek.slice(Math.max(0,n-state.period));}
+
+// ---- aggregation: governorate level ----
+function aggGov(D){
+  const wk=selectedWeeks(D);const dest={},flows={},reasons={};let total=0;
+  wk.forEach(w=>{total+=w.total;
+    for(const k in w.dest)dest[k]=(dest[k]||0)+w.dest[k];
+    for(const k in w.reasons)reasons[k]=(reasons[k]||0)+w.reasons[k];
+    w.flows.forEach(f=>{const key=f.o+'|'+f.d;flows[key]=(flows[key]||0)+f.hh;});});
+  return {dest,flows:Object.entries(flows).map(([k,hh])=>{const[o,d]=k.split('|');return{o,d,hh};}),reasons,total};
+}
+// ---- aggregation: district level for a selected gov ----
+function aggDist(D,G){
+  const wk=selectedWeeks(D);const dest={},intern={},inflow={};let total=0;
+  wk.forEach(w=>{(w.dflows||[]).forEach(f=>{
+    if(f.dg!==G)return; total+=f.hh; dest[f.dd]=(dest[f.dd]||0)+f.hh;
+    if(f.og===G){const k=f.od+'|'+f.dd;intern[k]=(intern[k]||0)+f.hh;}
+    else {inflow[f.og]=(inflow[f.og]||0)+f.hh;}   // aggregate external by ORIGIN governorate
+  });});
+  return {dest,
+    intern:Object.entries(intern).map(([k,hh])=>{const[o,d]=k.split('|');return{o,d,hh};}),
+    inflow:Object.entries(inflow).map(([o,hh])=>({o,hh})),
+    total};
+}
+
+// ---- projection ----
+function eachCoord(g,cb){const t=g.type,c=g.coordinates;
+  if(t==='Polygon')c.forEach(r=>r.forEach(p=>cb(p[0],p[1])));
+  else if(t==='MultiPolygon')c.forEach(pl=>pl.forEach(r=>r.forEach(p=>cb(p[0],p[1]))));}
+function boundsOf(features){let a=[1e9,1e9,-1e9,-1e9];features.forEach(f=>eachCoord(f.geometry,(x,y)=>{a[0]=Math.min(a[0],x);a[1]=Math.min(a[1],y);a[2]=Math.max(a[2],x);a[3]=Math.max(a[3],y);}));return a;}
+function makeProj(bbox,W,H,pad){
+  const [mnx,mny,mxx,mxy]=bbox,latm=(mny+mxy)/2,aspect=1/Math.cos(latm*Math.PI/180);
+  const gw=(mxx-mnx),gh=(mxy-mny)*aspect,s=Math.min((W-2*pad)/gw,(H-2*pad)/gh);
+  const ox=(W-gw*s)/2,oy=(H-gh*s)/2;
+  return {x:lon=>ox+(lon-mnx)*s,y:lat=>oy+(mxy-lat)*aspect*s,W,H};
+}
+function ringPath(g,P){let d='';const draw=r=>{r.forEach((p,i)=>{d+=(i?'L':'M')+P.x(p[0]).toFixed(1)+' '+P.y(p[1]).toFixed(1);});d+='Z';};
+  if(g.type==='Polygon')g.coordinates.forEach(draw);else if(g.type==='MultiPolygon')g.coordinates.forEach(pl=>pl.forEach(draw));return d;}
+const BLUES=['--b1','--b2','--b3','--b4','--b5','--b6'];
+const blue=t=>`var(${BLUES[Math.min(5,Math.max(0,Math.round(Math.pow(t,.55)*5)))]})`;
+// clip a point coming from outside toward inside, to the drawing rect
+function clipEntry(ox,oy,dx,dy,W,H,m){
+  if(ox>=m&&ox<=W-m&&oy>=m&&oy<=H-m)return[ox,oy];
+  let t0=0,t1=1;const px=dx-ox,py=dy-oy;
+  const clip=(p,q)=>{if(p===0)return q>=0;const r=q/p;if(p<0){if(r>t1)return false;if(r>t0)t0=r;}else{if(r<t0)return false;if(r<t1)t1=r;}return true;};
+  if(clip(-px,ox-m)&&clip(px,W-m-ox)&&clip(-py,oy-m)&&clip(py,H-m-oy)){
+    return [ox+t0*px,oy+t0*py];
+  }
+  return [ox,oy];
+}
+function curve(x1,y1,x2,y2,k){const mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1;
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} Q${(mx-dy/len*k).toFixed(1)} ${(my+dx/len*k).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;}
+
+function arrowDefs(){return `<defs><marker id="ar" markerWidth="7" markerHeight="7" refX="6" refY="3.2" orient="auto"><path d="M0 0L7 3.2L0 6.4Z" fill="var(--accent)"/></marker></defs>`;}
+
+function renderMapGov(D){
+  const svg=document.getElementById('map'),W=600,H=440;
+  const agg=aggGov(D);const P=makeProj(boundsOf(D.geo.features),W,H,26);
+  const dmax=Math.max(1,...Object.values(agg.dest));
+  const canDrill=!!D.dgeo;
+  let s=arrowDefs();
+  D.geo.features.forEach(f=>{const pc=f.properties.pc,v=agg.dest[pc]||0;
+    const drill=canDrill&&D.dgeo[pc];
+    s+=`<path class="gpath${v?'':' empty'}${drill?' click':''}" d="${ringPath(f.geometry,P)}" fill="${v>0?blue(v/dmax):'var(--surf2)'}" data-pc="${pc}"></path>`;});
+  // internal bubbles
+  const intra={};agg.flows.forEach(f=>{if(f.o===f.d)intra[f.d]=(intra[f.d]||0)+f.hh;});
+  const imax=Math.max(1,...Object.values(intra));
+  for(const pc in intra){const g=D.gov[pc];if(!g||g.lon==null)continue;const r=3+13*Math.sqrt(intra[pc]/imax);
+    s+=`<circle class="intern" cx="${P.x(g.lon).toFixed(1)}" cy="${P.y(g.lat).toFixed(1)}" r="${r.toFixed(1)}" data-in="${pc}"></circle>`;}
+  // TOP-10 inter-gov arrows
+  const inter=agg.flows.filter(f=>f.o!==f.d&&f.hh>0).sort((a,b)=>b.hh-a.hh).slice(0,10);
+  const fmax=Math.max(1,...inter.map(f=>f.hh));
+  inter.forEach((f,i)=>{const a=D.gov[f.o],b=D.gov[f.d];if(!a||!b||a.lon==null||b.lon==null)return;
+    const x1=P.x(a.lon),y1=P.y(a.lat),x2=P.x(b.lon),y2=P.y(b.lat),len=Math.hypot(x2-x1,y2-y1);
+    const k=Math.min(55,len*0.22)*(i%2?1:-1),w=1.2+5*Math.sqrt(f.hh/fmax);
+    s+=`<path class="arc" stroke-width="${w.toFixed(2)}" marker-end="url(#ar)" d="${curve(x1,y1,x2,y2,k)}" data-o="${f.o}" data-d="${f.d}" data-hh="${f.hh}"></path>`;});
+  // labels for top dest
+  Object.entries(agg.dest).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([pc])=>{const g=D.gov[pc];if(!g||g.lon==null)return;
+    s+=`<text x="${P.x(g.lon).toFixed(1)}" y="${(P.y(g.lat)-9).toFixed(1)}" text-anchor="middle" style="font-family:Archivo;font-weight:700;font-size:11px;fill:var(--ink);paint-order:stroke;stroke:var(--surf);stroke-width:3px">${g.name}</text>`;});
+  svg.innerHTML=s;
+  svg.querySelectorAll('.gpath').forEach(p=>{const pc=p.dataset.pc;
+    p.addEventListener('mousemove',e=>showTip(`<b>${D.gov[pc]?D.gov[pc].name:pc}</b><br>${fmt(agg.dest[pc]||0)} households received${(D.dgeo&&D.dgeo[pc])?'<br><span style="opacity:.8">click to drill in</span>':''}`,e));
+    p.addEventListener('mouseleave',hideTip);
+    if(D.dgeo&&D.dgeo[pc])p.addEventListener('click',()=>{state.level='dist';state.selGov=pc;render();});});
+  bindArcs(svg,D);
+  svg.querySelectorAll('.intern').forEach(c=>{const pc=c.dataset.in;
+    c.addEventListener('mousemove',e=>showTip(`<b>${D.gov[pc].name}</b><br>${fmt(intra[pc])} displaced within governorate`,e));c.addEventListener('mouseleave',hideTip);});
+  return agg;
+}
+
+function renderMapDist(D,G){
+  const svg=document.getElementById('map'),W=600,H=440;
+  const fc=D.dgeo[G];const bb=boundsOf(fc.features);
+  const ex=(bb[2]-bb[0])*0.28,ey=(bb[3]-bb[1])*0.28;
+  const P=makeProj([bb[0]-ex,bb[1]-ey,bb[2]+ex,bb[3]+ey],W,H,20);
+  const agg=aggDist(D,G);const dmax=Math.max(1,...Object.values(agg.dest));
+  let s=arrowDefs();
+  fc.features.forEach(f=>{const pc=f.properties.pc,v=agg.dest[pc]||0;
+    s+=`<path class="gpath${v?'':' empty'}" d="${ringPath(f.geometry,P)}" fill="${v>0?blue(v/dmax):'var(--surf2)'}" data-dd="${pc}"></path>`;});
+  // internal district self-bubbles
+  const self={};agg.intern.forEach(f=>{if(f.o===f.d)self[f.d]=(self[f.d]||0)+f.hh;});
+  const smax=Math.max(1,...Object.values(self));
+  for(const pc in self){const c=D.dcent[pc];if(!c)continue;const r=2.5+11*Math.sqrt(self[pc]/smax);
+    s+=`<circle class="intern" cx="${P.x(c.lon).toFixed(1)}" cy="${P.y(c.lat).toFixed(1)}" r="${r.toFixed(1)}" data-dself="${pc}"></circle>`;}
+  // TOP-10 internal district arcs (o!=d)
+  const din=agg.intern.filter(f=>f.o!==f.d&&f.hh>0).sort((a,b)=>b.hh-a.hh).slice(0,10);
+  const dmx=Math.max(1,...din.map(f=>f.hh));
+  din.forEach((f,i)=>{const a=D.dcent[f.o],b=D.dcent[f.d];if(!a||!b)return;
+    const x1=P.x(a.lon),y1=P.y(a.lat),x2=P.x(b.lon),y2=P.y(b.lat),len=Math.hypot(x2-x1,y2-y1);
+    const k=Math.min(45,len*0.22)*(i%2?1:-1),w=1+4*Math.sqrt(f.hh/dmx);
+    s+=`<path class="arc" stroke-width="${w.toFixed(2)}" marker-end="url(#ar)" d="${curve(x1,y1,x2,y2,k)}" data-io="${f.o}" data-id="${f.d}" data-hh="${f.hh}"></path>`;});
+  // TOP-4 external inflow arrows — one per source governorate, aimed at the gov centre
+  const gc=D.gov[G];const tx=P.x(gc.lon),ty=P.y(gc.lat);
+  const ext=agg.inflow.filter(f=>f.hh>0&&D.gov[f.o]&&D.gov[f.o].lon!=null).sort((a,b)=>b.hh-a.hh).slice(0,4);
+  const emx=Math.max(1,...ext.map(f=>f.hh));
+  ext.forEach(f=>{const og=D.gov[f.o];
+    const ox=P.x(og.lon),oy=P.y(og.lat);const [ex2,ey2]=clipEntry(ox,oy,tx,ty,W,H,6);
+    const w=1.2+3.5*Math.sqrt(f.hh/emx);
+    const k=Math.min(26,Math.hypot(tx-ex2,ty-ey2)*0.16);
+    s+=`<path class="arc ext" stroke-width="${w.toFixed(2)}" marker-end="url(#ar)" d="${curve(ex2,ey2,tx,ty,k)}" data-eo="${f.o}" data-hh="${f.hh}"></path>`;
+    const lx=ex2*0.62+tx*0.38,ly=ey2*0.62+ty*0.38;
+    s+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" style="font-family:Archivo;font-weight:700;font-size:9.5px;fill:var(--accent-d);paint-order:stroke;stroke:var(--surf);stroke-width:2.8px">from ${og.name}</text>`;});
+  // district labels (top 6 by dest)
+  Object.entries(agg.dest).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([pc])=>{const c=D.dcent[pc];if(!c)return;
+    s+=`<text x="${P.x(c.lon).toFixed(1)}" y="${(P.y(c.lat)-7).toFixed(1)}" text-anchor="middle" style="font-family:Archivo;font-weight:700;font-size:9.5px;fill:var(--ink);paint-order:stroke;stroke:var(--surf);stroke-width:2.6px">${c.name}</text>`;});
+  svg.innerHTML=s;
+  svg.querySelectorAll('.gpath').forEach(p=>{const pc=p.dataset.dd,c=D.dcent[pc];
+    p.addEventListener('mousemove',e=>showTip(`<b>${c?c.name:pc}</b><br>${fmt(agg.dest[pc]||0)} households received`,e));p.addEventListener('mouseleave',hideTip);});
+  svg.querySelectorAll('.arc').forEach(p=>{
+    p.addEventListener('mousemove',e=>{
+      if(p.dataset.eo){showTip(`<b>${D.gov[p.dataset.eo].name} → ${D.gov[G].name}</b><br>${fmt(+p.dataset.hh)} households from outside`,e);}
+      else{const on=D.dcent[p.dataset.io]?D.dcent[p.dataset.io].name:p.dataset.io,dn=D.dcent[p.dataset.id]?D.dcent[p.dataset.id].name:p.dataset.id;
+        showTip(`<b>${on} → ${dn}</b><br>${fmt(+p.dataset.hh)} households`,e);}});
+    p.addEventListener('mouseenter',()=>p.style.opacity=1);p.addEventListener('mouseleave',()=>{p.style.opacity='';hideTip();});});
+  svg.querySelectorAll('.intern').forEach(c=>{const pc=c.dataset.dself;
+    c.addEventListener('mousemove',e=>showTip(`<b>${D.dcent[pc].name}</b><br>${fmt(self[pc])} displaced within district`,e));c.addEventListener('mouseleave',hideTip);});
+  return agg;
+}
+function bindArcs(svg,D){svg.querySelectorAll('.arc').forEach(p=>{
+  p.addEventListener('mousemove',e=>showTip(`<b>${D.gov[p.dataset.o].name} → ${D.gov[p.dataset.d].name}</b><br>${fmt(+p.dataset.hh)} households`,e));
+  p.addEventListener('mouseenter',()=>p.style.opacity=1);p.addEventListener('mouseleave',()=>{p.style.opacity='';hideTip();});});}
+
+function renderBar(D,rows,labelFn){
+  const W=380,H=Math.max(120,26+rows.length*29),rh=18,gap=11,x0=118,x1=W-46;
+  const mx=Math.max(1,...rows.map(r=>r[1]));let s='';
+  rows.forEach(([id,v],i)=>{const y=18+i*(rh+gap),w=(x1-x0)*v/mx;
+    s+=`<text class="barlab" x="${x0-8}" y="${y+rh-4}" text-anchor="end">${labelFn(id)}</text>`;
+    s+=`<rect class="bar" x="${x0}" y="${y}" width="${Math.max(2,w).toFixed(1)}" height="${rh}" rx="4"></rect>`;
+    s+=`<text class="barval tnum" x="${x0+w+6}" y="${y+rh-4}">${fmt(v)}</text>`;});
+  const svg=document.getElementById('bar');svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML=s;
+}
+function renderTrend(D){
+  const W=380,H=190,x0=10,x1=W-10,y0=16,y1=H-30;
+  const vals=D.perweek.map(w=>w.total),mx=Math.max(1,...vals),n=vals.length;
+  const X=i=>x0+(x1-x0)*(n<2?0.5:i/(n-1)),Y=v=>y1-(y1-y0)*v/mx;
+  const sel=new Set(selectedWeeks(D).map(w=>w.i));
+  let s=`<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="var(--line)" stroke-width="1"/>`;
+  const area=`M${X(0).toFixed(1)} ${y1} `+vals.map((v,i)=>`L${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ')+` L${X(n-1).toFixed(1)} ${y1} Z`;
+  s+=`<path class="tarea" d="${area}"/>`;
+  s+=`<path class="tline" d="${vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')}"/>`;
+  vals.forEach((v,i)=>{s+=`<circle class="tmark ${sel.has(i)?'on':''}" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${sel.has(i)?3.4:2.4}" data-i="${i}"></circle>`;});
+  s+=`<text class="axis" x="${x0}" y="${H-13}" text-anchor="start">${D.weeks[0].label.split('–')[0]}</text>`;
+  s+=`<text class="axis" x="${x1}" y="${H-13}" text-anchor="end">${D.weeks[n-1].label.split('–')[1]}</text>`;
+  s+=`<text class="axis tnum" x="${x0+2}" y="${y0-4}">peak ${fmt(mx)}/wk</text>`;
+  const svg=document.getElementById('trend');svg.innerHTML=s;
+  svg.querySelectorAll('.tmark').forEach(c=>{const i=+c.dataset.i;
+    c.addEventListener('mousemove',e=>showTip(`<b>${D.weeks[i].label}</b><br>${fmt(D.perweek[i].total)} households`,e));c.addEventListener('mouseleave',hideTip);});
+}
+function periodLabel(D){const W=D.weeks;if(state.period===0)return `Cumulative · ${W[0].label.split('–')[0]}–${W[W.length-1].label.split('–')[1]}`;
+  const wk=selectedWeeks(D),a=W[wk[0].i],b=W[wk[wk.length-1].i];return `${a.label.split('–')[0]} – ${b.label.split('–')[1]}`;}
+
+function render(){
+  const D=DATA.countries[state.country];
+  const pl=periodLabel(D);
+  const back=document.getElementById('back'),crumb=document.getElementById('crumb'),hint=document.getElementById('drillhint');
+  if(state.level==='dist'&&state.selGov&&D.dgeo&&D.dgeo[state.selGov]){
+    const G=state.selGov,gname=D.gov[G].name;
+    const agg=renderMapDist(D,G);
+    back.hidden=false;hint.hidden=true;
+    crumb.innerHTML=`<span class="lnk" id="cH">${state.country}</span> › <b>${gname}</b> <span style="color:var(--mut)">· districts · ${pl}</span>`;
+    crumb.querySelector('#cH').addEventListener('click',()=>{state.level='gov';state.selGov=null;render();});
+    document.getElementById('barh').textContent=`By district — ${gname}`;
+    document.getElementById('barch').textContent=`Households received · ${pl}`;
+    const rows=Object.entries(agg.dest).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,9);
+    renderBar(D,rows,id=>D.dcent[id]?D.dcent[id].name:id);
+    const ppl=agg.total*(D.hh_to_people||6),dn=Object.values(agg.dest).filter(v=>v>0).length;
+    const topIn=agg.intern.filter(f=>f.o!==f.d).sort((a,b)=>b.hh-a.hh)[0];
+    const topExt=agg.inflow.sort((a,b)=>b.hh-a.hh)[0];
+    document.getElementById('kpis').innerHTML=
+     `<div class="kpi accent"><div class="k">${gname} — households</div><div class="v tnum">${fmt(agg.total)}</div><div class="n">≈ ${fmt(ppl)} people (×${D.hh_to_people||6})*</div></div>
+      <div class="kpi"><div class="k">Districts affected</div><div class="v tnum">${dn}</div><div class="n">receiving displaced households</div></div>
+      <div class="kpi"><div class="k">Top internal move</div><div class="v small">${topIn?D.dcent[topIn.o].name+' → '+D.dcent[topIn.d].name:'—'}</div><div class="n">${topIn?fmt(topIn.hh)+' households':'—'}</div></div>
+      <div class="kpi"><div class="k">Largest inflow from</div><div class="v small">${topExt?D.gov[topExt.o].name:'—'}</div><div class="n">${topExt?fmt(topExt.hh)+' households from outside':'none'}</div></div>`;
+  } else {
+    const agg=renderMapGov(D);
+    back.hidden=true;hint.hidden=!D.dgeo;
+    crumb.innerHTML=`<b>${state.country}</b> <span style="color:var(--mut)">· governorates · ${pl}</span>`;
+    document.getElementById('barh').textContent='By governorate';
+    document.getElementById('barch').textContent=`Households received · ${pl}`;
+    const rows=Object.entries(agg.dest).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,9);
+    renderBar(D,rows,id=>D.gov[id]?D.gov[id].name:id);
+    const ppl=agg.total*(D.hh_to_people||6),gn=Object.values(agg.dest).filter(v=>v>0).length;
+    const inter=agg.flows.filter(f=>f.o!==f.d).sort((a,b)=>b.hh-a.hh),top=inter[0];
+    const conf=agg.reasons['Conflict Reasons']||Object.entries(agg.reasons).filter(([k])=>/onflict/.test(k)).reduce((a,[,v])=>a+v,0);
+    const rt=Object.values(agg.reasons).reduce((a,b)=>a+b,0)||1;
+    document.getElementById('kpis').innerHTML=
+     `<div class="kpi accent"><div class="k">Households displaced</div><div class="v tnum">${fmt(agg.total)}</div><div class="n">≈ ${fmt(ppl)} people (×${D.hh_to_people||6})*</div></div>
+      <div class="kpi"><div class="k">Governorates affected</div><div class="v tnum">${gn}</div><div class="n">receiving displaced households</div></div>
+      <div class="kpi"><div class="k">Top corridor</div><div class="v small">${top?D.gov[top.o].name+' → '+D.gov[top.d].name:'—'}</div><div class="n">${top?fmt(top.hh)+' households':'no cross-gov flow'}</div></div>
+      <div class="kpi"><div class="k">Conflict-driven</div><div class="v tnum">${(p=>p>=99.95?'100':p.toFixed(1))(conf/rt*100)}%</div><div class="n">of displacement in period</div></div>`;
+  }
+  document.getElementById('subtitle').textContent=`${state.country} · Rapid Displacement Tracking`;
+  renderTrend(D);
+  document.getElementById('foot').innerHTML=`*People = households × ${D.hh_to_people||6} (assumed average household size). Households are the unit recorded by IOM DTM Rapid Displacement Tracking; the RDT does not record individuals. Source: IOM DTM — RDT. Boundaries: geoBoundaries (gbOpen). Prepared for UNICEF.`;
+}
+function init(){
+  const cs=Object.keys(DATA.countries);
+  const active=cs.filter(c=>DATA.countries[c].metric_type!=='stock');
+  const pend=[...cs.filter(c=>DATA.countries[c].metric_type==='stock'),...(DATA.pending||[])];
+  (active.length?active:cs).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;csel.appendChild(o);});
+  if(pend.length){const og=document.createElement('optgroup');og.label='Data ready — stock mode in progress';
+    pend.forEach(c=>{const o=document.createElement('option');o.textContent=c;o.disabled=true;og.appendChild(o);});csel.appendChild(og);}
+  state.country=(active[0]||cs[0]); csel.value=state.country; render();
+}
+fetch('data/data.json').then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{DATA=d;init();}).catch(()=>{
+  document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div style=\"padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surf);margin-bottom:14px;color:var(--ink)\">Could not load <b>data/data.json</b>. Serve the folder over HTTP \u2014 e.g. <code>python -m http.server</code> then open <code>http://localhost:8000</code> \u2014 or deploy to GitHub Pages. Opening index.html directly from disk blocks the data fetch.</div>');
+});
+</script>
