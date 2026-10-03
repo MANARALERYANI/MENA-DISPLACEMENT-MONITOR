@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+dtm_key.txt
+scripts/dtm_key.txt
+*.log
+__pycache__/
+.cache/

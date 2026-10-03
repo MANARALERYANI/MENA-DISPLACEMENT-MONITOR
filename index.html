@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MENA Displacement Monitor</title>
+  <meta name="description" content="Interactive IOM DTM population-movement monitor." />
+</head>
+<body>
+  <div id="app">
+    <!-- ============ Header ============ -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-txt">
+          <span class="tag">IOM DTM · Population movement</span>
+          <h1 id="appTitle">Displacement Monitor</h1>
+          <p class="sub" id="appSub">New internal displacement — origin → destination</p>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="ctl">
+          <span class="ctl-lab">Dataset</span>
+          <select id="countrySel" aria-label="Dataset"></select>
+        </label>
+        <div class="ctl">
+          <span class="ctl-lab"><span id="periodLab">Period</span> <span class="ctl-range" id="periodRange"></span></span>
+          <div class="seg" id="periodSeg" role="group" aria-label="Time period"></div>
+        </div>
+        <span id="refreshPill" class="refresh" title="Date the underlying data was built"></span>
+        <button id="themeBtn" class="iconbtn" title="Toggle light / dark" aria-label="Toggle theme">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 0 18V3Z"/><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============ Body: map + rail ============ -->
+    <div class="layout">
+      <main class="stage" aria-label="Movement map">
+        <div id="map" class="map">
+          <canvas id="deck"></canvas>
+          <canvas id="overlay" class="overlay" aria-hidden="true"></canvas>
+
+          <!-- top-left: where am I -->
+          <nav class="mapbox crumbbox" aria-label="Map level">
+            <button id="backBtn" class="crumb-back" hidden title="Back to all governorates (Esc)" aria-label="Back">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="crumb" id="crumb"></div>
+          </nav>
+
+          <!-- top-right: view controls -->
+          <div class="maptools">
+            <div class="mapbox toolgroup" role="group" aria-label="Zoom">
+              <button id="zoomIn" class="tool" title="Zoom in (+)" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              </button>
+              <button id="zoomOut" class="tool" title="Zoom out (−)" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              </button>
+              <button id="zoomFit" class="tool" title="Fit to view (0)" aria-label="Fit to view">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+              </button>
+            </div>
+            <div class="mapbox toolgroup" role="group" aria-label="Animation">
+              <button id="animBtn" class="tool" aria-pressed="true" title="Animate flow direction" aria-label="Animate flow direction">
+                <svg class="i-pause" viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+                <svg class="i-play" viewBox="0 0 24 24" width="18" height="18"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- bottom-left: legend -->
+          <details class="mapbox legendbox" id="legendBox" open>
+            <summary>Legend</summary>
+            <div id="legend" class="legend"></div>
+          </details>
+
+          <!-- bottom-right: arrows shown + hint -->
+          <div class="mapbox showbox">
+            <span class="ctl-lab">Arrows</span>
+            <div class="seg seg-sm" id="topNSeg" role="group" aria-label="Number of arrows shown"></div>
+          </div>
+          <div class="hint" id="hint"></div>
+
+          <div id="nowebgl" class="nowebgl" hidden>
+            This view needs WebGL, which is unavailable in your browser.
+          </div>
+        </div>
+      </main>
+
+      <aside class="rail" id="rail" aria-label="Summary">
+        <section class="kpis" id="kpis" aria-label="Key figures"></section>
+        <section class="card">
+          <div class="card-hd"><h2 id="flowTitle">Top movements</h2><span class="card-sub" id="flowSub"></span></div>
+          <div id="flows" class="flows"></div>
+        </section>
+        <section class="card">
+          <div class="card-hd"><h2 id="barsTitle">Arrivals by area</h2><span class="card-sub" id="barsSub"></span></div>
+          <div id="bars" class="bars"></div>
+        </section>
+        <section class="card">
+          <div class="card-hd"><h2 id="trendTitle">Weekly trend</h2><span class="card-sub" id="trendSub"></span></div>
+          <div id="trend" class="trend"></div>
+        </section>
+        <p class="src" id="srcNote"></p>
+      </aside>
+    </div>
+
+    <div id="tip" class="tip" role="tooltip" aria-hidden="true"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
