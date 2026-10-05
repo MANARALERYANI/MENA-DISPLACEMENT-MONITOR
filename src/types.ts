@@ -21,7 +21,7 @@ export interface PerWeek {
 
 export interface GeoFeature {
   type: 'Feature';
-  properties: { pc: string; name: string };
+  properties: { pc: string; name: string; g?: string };
   geometry: any;                       // Polygon | MultiPolygon
 }
 export interface FeatureCollection { type: 'FeatureCollection'; features: GeoFeature[]; }
@@ -33,14 +33,16 @@ export interface CountryPayload {
   iso: string;
   metric_type: MetricType;
   unit: string;                        // "households" | "individuals"
-  hh_to_people: number;                // multiplier for indicative people (Yemen=6, stock=1)
+  hh_to_people: number;                // households → people multiplier (Yemen=6, stock=1)
+  people_basis?: 'reported' | 'estimate'; // reported = the source publishes individuals
   weeks: Week[];
   perweek: PerWeek[];
   gov: Record<string, GovInfo>;
   geo: FeatureCollection;
   // Yemen-only:
   dcent?: Record<string, DCent>;
-  dgeo?: Record<string, FeatureCollection>;
+  adm2?: FeatureCollection;            // every district (props pc/name/g), aligned with geo
+  dgeo?: Record<string, FeatureCollection>;   // built on load from adm2, per drillable gov
   dbbox?: Record<string, [number, number, number, number]>;
   total_all?: number;
   total_latest?: number;
@@ -52,6 +54,7 @@ export interface AppData {
   countries: Record<string, CountryPayload>;   // keyed by dataset label
   pending: string[];
   default?: string;                             // label of the dataset to show first
+  shared?: { geo: FeatureCollection; adm2: FeatureCollection };  // geography common to datasets
 }
 
 // ---- aggregated view models (output of aggGov / aggDist) ----

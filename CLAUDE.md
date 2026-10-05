@@ -27,8 +27,17 @@ reasons:{label:value} }`.  (`hh` is the value in that country's `unit`.)
 **Yemen only** adds district drill-down:
 - `perweek[i].dflows:[{og,od,dg,dd,hh}]` — origin/dest gov+district pcodes.
 - `dcent:{dist_pc:{name,lat,lon,g}}` — district centroids.
-- `dgeo:{gov_pc:<ADM2 FeatureCollection>}` — districts of each drillable gov.
-- `dbbox:{gov_pc:[minx,miny,maxx,maxy]}` — zoom target.
+- `adm2:<FeatureCollection>` — every district (props `pc`, `name`, `g` = gov pcode).
+  Unmatched districts get `pc` = `"x"+shapeID`. The app builds `dgeo[gov]` from this on
+  load (for govs in `dbbox`) and draws other govs' districts dashed as context.
+- `dbbox:{gov_pc:[minx,miny,maxx,maxy]}` — zoom target (and the drillable govs).
+- `people_basis:"reported"|"estimate"` — West Coast Escalation reports individuals
+  (IOM: HH × 6); RDT records households only, so people are estimated.
+- When both datasets share geography, `geo`/`adm2` live once in top-level `shared`.
+
+**Boundaries:** ADM2 is coverage-simplified (`GEO_TOL`) and governorates are the union
+of their districts, so gov and district borders always coincide. Don't simplify
+features one by one — that is what made borders misalign.
 
 ## How the app renders (index.html)
 - `state = {country, period(0=cumulative|1..4=last N weeks), level('gov'|'dist'), selGov}`.

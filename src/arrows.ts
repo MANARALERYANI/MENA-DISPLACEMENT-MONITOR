@@ -409,6 +409,7 @@ export class FlowOverlay {
 /** Small standalone arrow for the legend, drawn with the same geometry and shading. */
 export function legendArrowSVG(width: number, color = 'var(--legend-arrow)', len = 46): string {
   const hw = width / 2, headW = Math.max(width * 2.15 + 3, 9), headL = headW * 0.95;
+  len = Math.max(len, headL + 22);              // always show a shaft, not just the head
   const y = 12 + Math.max(0, headW / 2 - 6), x0 = 3 + hw * 0.3, x1 = len - headL;
   const tail = hw * 0.3;
   const d = `M${x0} ${y - tail} C${x0 + (x1 - x0) * 0.35} ${y - hw * 0.8} ${x0 + (x1 - x0) * 0.6} ${y - hw} ${x1} ${y - hw}

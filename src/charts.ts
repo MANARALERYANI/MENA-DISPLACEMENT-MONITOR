@@ -48,13 +48,13 @@ export function trendSVG(c: CountryPayload, selected: Set<number>): string {
 
 /** Ranked list of top areas by value. Rows carry data-pc so main.ts can link hover →
  *  map highlight and click → drill. */
-export function barsHTML(items: { pc: string; name: string; value: number; drill: boolean }[], mult = 1): string {
+export function barsHTML(items: { pc: string; name: string; value: number; drill: boolean }[], mult = 1, approx = '~'): string {
   const top = items.filter((d) => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
   if (top.length === 0) return `<p class="empty">No movement in this selection.</p>`;
   const max = Math.max(1, ...top.map((d) => d.value));
   return top.map((d) => {
     const w = Math.max(2, (d.value / max) * 100);
-    const ppl = mult > 1 ? `<span class="br-ppl">~${fmtK(d.value * mult)} ppl</span>` : '';
+    const ppl = mult > 1 ? `<span class="br-ppl">${approx}${fmtK(d.value * mult)} ppl</span>` : '';
     return `<div class="br-row${d.drill ? ' drill' : ''}" data-pc="${esc(d.pc)}" ${d.drill ? 'role="button" tabindex="0"' : ''} title="${esc(d.name)}: ${fmt(d.value)}">
       <span class="br-name">${esc(clip(d.name, 18))}</span>
       <span class="br-track"><i style="width:${w.toFixed(1)}%"></i></span>

@@ -7,7 +7,19 @@ export async function loadData(): Promise<AppData> {
   const url = import.meta.env.BASE_URL + 'data/data.json';
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Failed to load ${url}: ${r.status}`);
-  return r.json();
+  const data: AppData = await r.json();
+  for (const c of Object.values(data.countries)) {
+    c.geo ??= data.shared!.geo;
+    c.adm2 ??= data.shared?.adm2;
+    // Districts of each drillable governorate (those with a zoom box).
+    if (c.adm2 && c.dbbox && !c.dgeo) {
+      c.dgeo = {};
+      for (const g of Object.keys(c.dbbox)) {
+        c.dgeo[g] = { type: 'FeatureCollection', features: c.adm2.features.filter((f) => f.properties.g === g) };
+      }
+    }
+  }
+  return data;
 }
 
 // ----------------------------- formatting -----------------------------------

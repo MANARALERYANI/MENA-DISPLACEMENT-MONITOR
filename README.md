@@ -10,8 +10,8 @@ district), a by-area bar chart, and a weekly-trend line.
   monthly*); their data is pulled by the refresh script and the app's "stock mode"
   is the next build step (see `CLAUDE.md`).
 
-Self-contained: plain HTML/CSS/JS, no build step, no framework. The only runtime
-input is `data/data.json`.
+Built with Vite + TypeScript + deck.gl, no map tiles or external services. The only
+runtime input is `data/data.json`.
 
 ## Project structure
 ```
@@ -30,13 +30,13 @@ mena-displacement-monitor/
 ```
 
 ## Run it locally
-The app fetches `data/data.json`, so it must be served over HTTP (opening
-`index.html` from disk is blocked by the browser). From the project folder:
+Needs Node.js. From the project folder:
 ```
-python -m http.server 8000
+npm install      # once
+npm run dev      # http://localhost:5173, reloads on save
 ```
-then open **http://localhost:8000**. Click **Taiz** to drill into its districts;
-use **← All governorates** to zoom back out.
+`npm run build` makes the deployable `dist/`; `npm run preview` serves it locally.
+Click a governorate to drill into its districts; click empty map space (or Esc) to go back.
 
 ## Refresh the data (manual download → one command)
 
@@ -65,18 +65,14 @@ To refresh, download the newest workbook(s) from the DTM site and drop them in `
    On Windows, prefix with `PYTHONIOENCODING=utf-8` if the console chokes on Unicode.
 
 ## Deploy free on GitHub Pages
-1. Create a new GitHub repo and push this folder:
-   ```
-   git init && git add . && git commit -m "MENA Displacement Monitor v0"
-   git branch -M main
-   git remote add origin https://github.com/<you>/mena-displacement-monitor.git
-   git push -u origin main
-   ```
-2. On GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a
-   branch → Branch: `main` / root → Save**.
-3. Your site goes live at `https://<you>.github.io/mena-displacement-monitor/`
-   within a minute. To update it, re-run the refresh script, commit the new
-   `data/data.json`, and push.
+The repo deploys itself: `.github/workflows/deploy.yml` builds the app and publishes
+`dist/` to GitHub Pages on every push to `main`.
+
+1. One-time: **Settings → Pages → Build and deployment → Source: GitHub Actions**
+   (on a free GitHub plan the repo must be public).
+2. The site lives at `https://<you>.github.io/MENA-DISPLACEMENT-MONITOR/`.
+3. To update it: drop new workbooks in `scripts/`, run `python scripts/refresh_dtm.py`,
+   then commit and push. The **Actions** tab shows each deploy.
 
 `.env`, `dtm_key.txt` and the discover dump are gitignored, so your key never
 ships to the repo or the public site.

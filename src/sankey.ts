@@ -9,7 +9,7 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…'
 
 export function sankeySVG(
   flows: { oName: string; dName: string; v: number; key: string; oPc: string }[],
-  unit: string, mult = 1, colorFn: (oPc: string) => string = () => 'var(--accent)',
+  unit: string, mult = 1, colorFn: (oPc: string) => string = () => 'var(--accent)', approx = '~',
 ): string {
   const top = flows.filter((f) => f.v > 0).sort((a, b) => b.v - a.v).slice(0, 9);
   if (top.length === 0) return `<p class="empty">No area-to-area movement in this selection.</p>`;
@@ -46,7 +46,7 @@ export function sankeySVG(
     const y0 = l.y + l.off + th / 2; l.off += f.v * scale;
     const y1 = r.y + r.off + th / 2; r.off += f.v * scale;
     const col = colorFn(f.oPc);
-    const ppl = mult > 1 ? ` · ~${fmtK(f.v * mult)} ppl` : '';
+    const ppl = mult > 1 ? ` · ${approx}${fmtK(f.v * mult)} ppl` : '';
     const self = f.oName === f.dName ? ' (within area)' : '';
     return `<path class="sk-link" data-key="${esc(f.key)}" fill="none" stroke="${col}"
       d="M${xL1} ${y0.toFixed(1)} C${midX} ${y0.toFixed(1)} ${midX} ${y1.toFixed(1)} ${xR0} ${y1.toFixed(1)}"

@@ -89,6 +89,80 @@ def _gb(iso3, lvl):
 
 MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
+# ---- Yemen geography: one aligned ADM2/ADM1 coverage -----------------------
+# geoBoundaries ADM1 and ADM2 are separate products; simplifying each polygon on its
+# own made shared borders drift apart. Instead ADM2 is simplified as a *coverage*
+# (shared edges simplified once, so neighbours stay identical) and governorates are
+# the union of their districts — every gov border is exactly a district border.
+GEO_TOL = 0.002          # degrees (~200 m); coverage-preserving
+# _norm() drops "governorate"/"city", so these two geoBoundaries ADM1 names collide;
+# pin them by raw name (the small "Sanʿaʾ" polygon is the capital city).
+GB_ADM1_PC = {"Sanʿaʾ": "YE13", "Sanʿaʾ Governorate": "YE23"}
+def _dkey(s):
+    """District key: like _norm but keeps "city" (Ma'rib vs Ma'rib City are different)."""
+    return re.sub(r"[^a-z]","",unicodedata.normalize("NFKD",str(s)).encode("ascii","ignore").decode().lower())
+def _rnd(geom):
+    import shapely
+    return shapely.set_precision(geom, 1e-4)   # ~11 m; identical inputs → identical outputs
+
+def build_yemen_geo(gov, dnames, key, drillable):
+    """→ gfeats (ADM1), adm2 (all districts, props pc/name/g), dcent, dbbox.
+    `gov` maps data gov pcode → {name,…}; `dnames` data district pcode → name;
+    `drillable` = gov pcodes that get a zoom box (destinations in the data)."""
+    import shapely, geopandas as gpd
+    from shapely.geometry import mapping
+    g1=_gb("YEM","ADM1"); g2=_gb("YEM","ADM2")
+    g1["pc"]=g1["shapeName"].map(lambda n: GB_ADM1_PC.get(n) or next((pc for pc in gov if key(gov[pc]["name"])==key(n)),"x"+key(n)))
+    from shapely.geometry import Point
+    for r in g1.itertuples():      # gov anchor = its own polygon's centroid (fixes name collisions),
+        if r.pc not in gov: continue   # or an interior point when the centroid falls outside (Sana'a)
+        lon,lat=r.lon,r.lat
+        if not r.geometry.contains(Point(lon,lat)):
+            p=r.geometry.representative_point(); lon,lat=p.x,p.y
+            print(f"  · {r.shapeName}: centroid outside polygon → interior anchor")
+        gov[r.pc]["lat"]=round(lat,4); gov[r.pc]["lon"]=round(lon,4)
+    g2r=g2.copy(); g2r["geometry"]=g2r.geometry.representative_point()
+    g1j=g1[["pc","shapeName","geometry"]].rename(columns={"shapeName":"govname"})
+    sj=gpd.sjoin(g2r,g1j,how="left",predicate="within")
+    sj=sj[~sj.index.duplicated()]
+    miss=sj["pc"].isna()           # ADM1/ADM2 coastlines differ slightly → nearest gov
+    if miss.any():
+        nj=gpd.sjoin_nearest(g2r[miss].to_crs(32638),g1j.to_crs(32638),how="left")
+        nj=nj[~nj.index.duplicated()]
+        sj.loc[miss,"pc"]=nj["pc"]; sj.loc[miss,"govname"]=nj["govname"]
+    g2["govpc"]=sj["pc"].values; g2["govname"]=sj["govname"].values
+    g2=g2.dropna(subset=["govpc"]).reset_index(drop=True)
+    g2["geometry"]=[_rnd(g) for g in shapely.coverage_simplify(g2.geometry.values, GEO_TOL)]
+    gfeats=[]
+    for gpc,sub in g2.groupby("govpc"):
+        u=_rnd(shapely.coverage_union_all(sub.geometry.values))
+        nm=gov[gpc]["name"] if gpc in gov else sub["govname"].iloc[0]
+        gfeats.append({"type":"Feature","properties":{"pc":gpc,"name":nm},"geometry":mapping(u)})
+    dpc2gov={pc:("YE"+str(pc)[2:4]) for pc in dnames}
+    pcs=[None]*len(g2); dcent={}
+    for gpc in g2["govpc"].unique():
+        sub=g2[g2["govpc"]==gpc]
+        gk2={_dkey(r.shapeName):r for r in sub.itertuples()}
+        gk2b={key(r.shapeName):r for r in sub.itertuples()}   # looser fallback (synonyms)
+        for dpc in [p for p in dnames if dpc2gov.get(p)==gpc]:
+            row=gk2.get(_dkey(dnames[dpc]))
+            if row is None: row=gk2b.get(key(dnames[dpc]))
+            if row is not None:
+                dcent[dpc]={"name":dnames[dpc],"lat":round(row.lat,4),"lon":round(row.lon,4),"g":gpc}
+                if pcs[row.Index] is None: pcs[row.Index]=dpc
+            elif gov.get(gpc,{}).get("lat") is not None:
+                dcent[dpc]={"name":dnames[dpc],"lat":gov[gpc]["lat"],"lon":gov[gpc]["lon"],"g":gpc}
+    adm2=[]
+    for r,pc in zip(g2.itertuples(),pcs):
+        adm2.append({"type":"Feature","properties":{"pc":pc or "x"+r.shapeID,
+                     "name":dnames.get(pc,r.shapeName),"g":r.govpc},"geometry":mapping(r.geometry)})
+    dbbox={}
+    for gpc in drillable:
+        sub=g2[g2["govpc"]==gpc]
+        if len(sub):
+            b=sub.total_bounds; dbbox[gpc]=[round(float(v),3) for v in b]
+    return gfeats,{"type":"FeatureCollection","features":adm2},dcent,dbbox
+
 # ========================= YEMEN (flow, district drill) ====================
 def build_yemen():
     import pandas as pd, geopandas as gpd
@@ -114,9 +188,6 @@ def build_yemen():
     g1=_gb("YEM","ADM1"); gk={key(r.shapeName):r for r in g1.itertuples()}
     gov={pc:{"name":gnames[pc],"lat":round(gk[key(gnames[pc])].lat,4) if key(gnames[pc]) in gk else None,
              "lon":round(gk[key(gnames[pc])].lon,4) if key(gnames[pc]) in gk else None} for pc in gnames}
-    g1["pc"]=g1["shapeName"].map(lambda n: next((pc for pc in gov if key(gov[pc]["name"])==key(n)),None))
-    gs=g1.dropna(subset=["pc"]).copy(); gs["geometry"]=gs.geometry.simplify(0.01,preserve_topology=True)
-    gfeats=[{"type":"Feature","properties":{"pc":r.pc,"name":gov[r.pc]["name"]},"geometry":mapping(r.geometry)} for r in gs.itertuples()]
     # weeks — RDT weekly grid anchored at YEAR-01-04, generated FORWARD to the newest
     # event date (capped at today), so a fresher workbook automatically adds weeks.
     start0=pd.Timestamp(f"{YEAR}-01-04")
@@ -133,33 +204,11 @@ def build_yemen():
         for w in weeks:
             if pd.Timestamp(w["start"])<=d<=pd.Timestamp(w["end"]): return w["i"]
     df["wi"]=df["dt"].map(wi); df=df.dropna(subset=["wi"]); df["wi"]=df["wi"].astype(int)
-    # districts: ADM2 -> gov via spatial join, match to RDT district names
-    g2=_gb("YEM","ADM2"); g2r=g2.copy(); g2r["geometry"]=g2r.geometry.representative_point()
-    sj=gpd.sjoin(g2r,g1[["pc","geometry"]],how="left",predicate="within"); g2["govpc"]=sj["pc"].values
     dnames={}
     for pc,nm in pd.concat([df[["ddp","District"]].rename(columns={"ddp":"pc","District":"nm"}),
                             df[["odp","District Coming From"]].rename(columns={"odp":"pc","District Coming From":"nm"})]
                            ).dropna().drop_duplicates().itertuples(index=False): dnames[pc]=nm
-    dpc2gov={pc:("YE"+pc[2:4]) for pc in dnames}
-    dcent={}; dgeo={}; dbbox={}
-    for gpc in set(df["dgp"].dropna()):
-        sub2=g2[g2["govpc"]==gpc].copy()
-        if len(sub2)==0: continue
-        gk2={key(r.shapeName):r for r in sub2.itertuples()}
-        feats=[]; used=set()
-        for dpc in [p for p in dnames if dpc2gov.get(p)==gpc]:
-            row=gk2.get(key(dnames[dpc]))
-            if row is not None:
-                dcent[dpc]={"name":dnames[dpc],"lat":round(row.lat,4),"lon":round(row.lon,4),"g":gpc}
-                if row.Index not in used:
-                    feats.append({"type":"Feature","properties":{"pc":dpc,"name":dnames[dpc]},
-                                  "geometry":mapping(g2.loc[row.Index,"geometry"].simplify(0.006,preserve_topology=True))}); used.add(row.Index)
-            else:
-                dcent[dpc]={"name":dnames[dpc],"lat":gov[gpc]["lat"],"lon":gov[gpc]["lon"],"g":gpc}
-        if feats:
-            dgeo[gpc]={"type":"FeatureCollection","features":feats}
-            b=gpd.GeoSeries([shape(ft["geometry"]) for ft in feats]).total_bounds
-            dbbox[gpc]=[round(float(b[0]),3),round(float(b[1]),3),round(float(b[2]),3),round(float(b[3]),3)]
+    gfeats,adm2,dcent,dbbox=build_yemen_geo(gov,dnames,key,set(df["dgp"].dropna()))
     perweek=[]
     for w in weeks:
         sub=df[df.wi==w["i"]]
@@ -174,9 +223,9 @@ def build_yemen():
             "dflows":[{"og":r.ogp,"od":r.odp,"dg":r.dgp,"dd":r.ddp,"hh":int(r.hh)} for r in dfl.itertuples() if r.hh>0]})
     return {"country":"Yemen","label":"Rapid Displacement Tracking",
             "subtitle":"New internal displacement (weekly RDT) — origin → destination",
-            "iso":"YEM","metric_type":"flow","unit":"households","hh_to_people":HH_TO_PEOPLE,
+            "iso":"YEM","metric_type":"flow","unit":"households","hh_to_people":HH_TO_PEOPLE,"people_basis":"estimate",
             "weeks":weeks,"perweek":perweek,"gov":gov,"geo":{"type":"FeatureCollection","features":gfeats},
-            "dcent":dcent,"dgeo":dgeo,"dbbox":dbbox,"total_all":int(df["hh"].sum())}
+            "dcent":dcent,"adm2":adm2,"dbbox":dbbox,"total_all":int(df["hh"].sum())}
 
 # ================== YEMEN — West Coast Escalation (flow, daily) =============
 def find_escalation():
@@ -196,9 +245,24 @@ def build_escalation():
     if not xlsx:
         print("  · no escalation workbook in scripts/ — skipping"); return None
     print("  · escalation file:", os.path.basename(xlsx))
-    df = pd.read_excel(xlsx, sheet_name="compilation")
-    # Households (consistent with the RDT dataset); people shown = HH × 6 (indicative).
-    df["val"] = pd.to_numeric(df["HH Displaced*"], errors="coerce").fillna(0)
+    # IOM varies the layout between issues (sheet "compilation" vs "Dataset"; headers like
+    # "Governorate*", "Governorate*2", "District"), so find the sheet by its columns and
+    # normalise headers by dropping the "*" / "*2" markers.
+    REQ = ["Displacement Date","Governorate_Pcode","Governorate","District_Pcode","District",
+           "Origin Governorate_Pcode","Origin Governorate","Origin District_Pcode","Origin District",
+           "HH Displaced"]
+    norm = lambda c: re.sub(r"\s*\*\d*\s*$", "", str(c)).strip()
+    df = None
+    for sh, d in pd.read_excel(xlsx, sheet_name=None).items():
+        d = d.rename(columns=norm)
+        if all(c in d.columns for c in REQ): df = d; print(f"  · sheet: {sh}"); break
+    if df is None:
+        raise SystemExit(f"  ! {os.path.basename(xlsx)}: no sheet has the columns {REQ}")
+    # Households (consistent with the RDT dataset). This file also reports individuals;
+    # the app shows people via hh_to_people = IOM's individuals ÷ households, labelled as
+    # reported (IOM itself derives individuals from households × an average HH size).
+    df["val"] = pd.to_numeric(df["HH Displaced"], errors="coerce").fillna(0)
+    df["ind"] = pd.to_numeric(df.get("Individuals Displaced"), errors="coerce")
     df["dt"] = pd.to_datetime(df["Displacement Date"], errors="coerce")
     df = df[(df["dt"] >= f"{YEAR}-01-01") & (df["dt"] <= f"{YEAR}-12-31")].dropna(subset=["dt"]).copy()
     df["dgp"],df["ddp"] = df["Governorate_Pcode"], df["District_Pcode"]
@@ -208,15 +272,12 @@ def build_escalation():
          "amanatalaseymah":"sana","amanatalasimah":"sana"}
     key=lambda s: syn.get(_norm(s),_norm(s))
     gnames={}
-    for pc,nm in pd.concat([df[["dgp","Governorate*"]].rename(columns={"dgp":"pc","Governorate*":"nm"}),
+    for pc,nm in pd.concat([df[["dgp","Governorate"]].rename(columns={"dgp":"pc","Governorate":"nm"}),
                             df[["ogp","Origin Governorate"]].rename(columns={"ogp":"pc","Origin Governorate":"nm"})]
                            ).dropna().drop_duplicates().itertuples(index=False): gnames[pc]=nm
     g1=_gb("YEM","ADM1"); gk={key(r.shapeName):r for r in g1.itertuples()}
     gov={pc:{"name":gnames[pc],"lat":round(gk[key(gnames[pc])].lat,4) if key(gnames[pc]) in gk else None,
              "lon":round(gk[key(gnames[pc])].lon,4) if key(gnames[pc]) in gk else None} for pc in gnames}
-    g1["pc"]=g1["shapeName"].map(lambda n: next((pc for pc in gov if key(gov[pc]["name"])==key(n)),None))
-    gs=g1.dropna(subset=["pc"]).copy(); gs["geometry"]=gs.geometry.simplify(0.01,preserve_topology=True)
-    gfeats=[{"type":"Feature","properties":{"pc":r.pc,"name":gov[r.pc]["name"]},"geometry":mapping(r.geometry)} for r in gs.itertuples()]
     start0=pd.Timestamp(f"{YEAR}-01-04"); maxd=min(df["dt"].max(), pd.Timestamp("today").normalize())
     df=df[df["dt"]<=maxd].copy()
     weeks=[]; i=0; cur=start0
@@ -230,32 +291,11 @@ def build_escalation():
         for w in weeks:
             if pd.Timestamp(w["start"])<=d<=pd.Timestamp(w["end"]): return w["i"]
     df["wi"]=df["dt"].map(wi); df=df.dropna(subset=["wi"]); df["wi"]=df["wi"].astype(int)
-    g2=_gb("YEM","ADM2"); g2r=g2.copy(); g2r["geometry"]=g2r.geometry.representative_point()
-    sj=gpd.sjoin(g2r,g1[["pc","geometry"]],how="left",predicate="within"); g2["govpc"]=sj["pc"].values
     dnames={}
-    for pc,nm in pd.concat([df[["ddp","District*"]].rename(columns={"ddp":"pc","District*":"nm"}),
+    for pc,nm in pd.concat([df[["ddp","District"]].rename(columns={"ddp":"pc","District":"nm"}),
                             df[["odp","Origin District"]].rename(columns={"odp":"pc","Origin District":"nm"})]
                            ).dropna().drop_duplicates().itertuples(index=False): dnames[pc]=nm
-    dpc2gov={pc:("YE"+str(pc)[2:4]) for pc in dnames}
-    dcent={}; dgeo={}; dbbox={}
-    for gpc in set(df["dgp"].dropna()):
-        sub2=g2[g2["govpc"]==gpc].copy()
-        if len(sub2)==0: continue
-        gk2={key(r.shapeName):r for r in sub2.itertuples()}
-        feats=[]; used=set()
-        for dpc in [p for p in dnames if dpc2gov.get(p)==gpc]:
-            row=gk2.get(key(dnames[dpc]))
-            if row is not None:
-                dcent[dpc]={"name":dnames[dpc],"lat":round(row.lat,4),"lon":round(row.lon,4),"g":gpc}
-                if row.Index not in used:
-                    feats.append({"type":"Feature","properties":{"pc":dpc,"name":dnames[dpc]},
-                                  "geometry":mapping(g2.loc[row.Index,"geometry"].simplify(0.006,preserve_topology=True))}); used.add(row.Index)
-            elif gov.get(gpc,{}).get("lat") is not None:
-                dcent[dpc]={"name":dnames[dpc],"lat":gov[gpc]["lat"],"lon":gov[gpc]["lon"],"g":gpc}
-        if feats:
-            dgeo[gpc]={"type":"FeatureCollection","features":feats}
-            b=gpd.GeoSeries([shape(ft["geometry"]) for ft in feats]).total_bounds
-            dbbox[gpc]=[round(float(b[0]),3),round(float(b[1]),3),round(float(b[2]),3),round(float(b[3]),3)]
+    gfeats,adm2,dcent,dbbox=build_yemen_geo(gov,dnames,key,set(df["dgp"].dropna()))
     perweek=[]
     for w in weeks:
         sub=df[df.wi==w["i"]]
@@ -267,12 +307,18 @@ def build_escalation():
             "flows":[{"o":r.ogp,"d":r.dgp,"hh":int(r.val)} for r in flows.itertuples()],
             "reasons":{"Conflict (west-coast escalation)":int(sub["val"].sum())},
             "dflows":[{"og":r.ogp,"od":r.odp,"dg":r.dgp,"dd":r.ddp,"hh":int(r.val)} for r in dfl.itertuples() if r.val>0]})
-    print(f"  ✓ Escalation: {len(gov)} govs, {len(dgeo)} govs w/ districts, total {int(df['val'].sum()):,} households")
+    ratio=HH_TO_PEOPLE; basis="estimate"
+    if df["ind"].notna().any() and df["val"].sum()>0:
+        ratio=round(float(df["ind"].sum()/df["val"].sum()),2); basis="reported"
+        r=(df["ind"]/df["val"].where(df["val"]>0)).dropna()
+        if len(r) and (r.max()-r.min())>0.01:
+            print(f"  ! individuals/household varies by row ({r.min():.2f}–{r.max():.2f}); sub-totals use the overall {ratio}")
+    print(f"  ✓ Escalation: {len(gov)} govs, {len(dbbox)} govs w/ districts, total {int(df['val'].sum()):,} households")
     return {"country":"Yemen","label":"West Coast Escalation",
             "subtitle":"Displacement from the west-coast escalation (daily) — origin → destination",
-            "iso":"YEM","metric_type":"flow","unit":"households","hh_to_people":HH_TO_PEOPLE,
+            "iso":"YEM","metric_type":"flow","unit":"households","hh_to_people":ratio,"people_basis":basis,
             "weeks":weeks,"perweek":perweek,"gov":gov,"geo":{"type":"FeatureCollection","features":gfeats},
-            "dcent":dcent,"dgeo":dgeo,"dbbox":dbbox,"total_all":int(df["val"].sum())}
+            "dcent":dcent,"adm2":adm2,"dbbox":dbbox,"total_all":int(df["val"].sum())}
 
 # ========================= API countries (stock) ===========================
 def build_api_country(api, name):
@@ -347,8 +393,13 @@ def main():
     if e and y:
         e["geo"]=y["geo"]
         e["gov"]={**y["gov"], **e["gov"]}
-        for k in ("dcent","dgeo","dbbox"):   # prefer the RDT's fuller district geometry
+        for k in ("dcent","dbbox"):   # prefer the RDT's fuller district matches
             merged=dict(e.get(k,{})); merged.update(y.get(k,{})); e[k]=merged
+        # Same ADM2 coverage in both (same order); keep whichever dataset matched a pcode.
+        e["adm2"]={"type":"FeatureCollection","features":[
+            fe if fy["properties"]["pc"].startswith("x") and not fe["properties"]["pc"].startswith("x") else fy
+            for fy,fe in zip(y["adm2"]["features"],e["adm2"]["features"])]}
+        y["adm2"]=e["adm2"]
     # selector order: escalation first (it is the default), then RDT
     if e: datasets[e["label"]]=e
     if y: datasets[y["label"]]=y
@@ -361,6 +412,10 @@ def main():
             if c: datasets[c.get("label",c["country"])]=c
     default = "West Coast Escalation" if "West Coast Escalation" in datasets else (next(iter(datasets), None))
     data={"generated":dt.date.today().isoformat(),"countries":datasets,"pending":[],"default":default}
+    # Datasets with identical geography share one copy (the app fills it back in on load).
+    if e and y and e["geo"]==y["geo"] and e["adm2"]==y["adm2"]:
+        data["shared"]={"geo":e["geo"],"adm2":e["adm2"]}
+        for c in (e,y): del c["geo"], c["adm2"]
     json.dump(data,open(OUT,"w",encoding="utf-8"),ensure_ascii=False,separators=(",",":"))
     print(f"\nWrote {OUT} ({round(os.path.getsize(OUT)/1024,1)} KB) — datasets: {list(datasets)} · default: {default}")
 

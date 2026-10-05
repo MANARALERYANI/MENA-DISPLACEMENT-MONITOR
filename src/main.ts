@@ -1,6 +1,7 @@
 import './styles.css';
 import { Deck, MapView, WebMercatorViewport, FlyToInterpolator, LinearInterpolator } from '@deck.gl/core';
 import { GeoJsonLayer } from '@deck.gl/layers';
+import { PathStyleExtension } from '@deck.gl/extensions';
 import type { AppData, CountryPayload, Arc, AggGov, AggDist } from './types';
 import {
   loadData, aggGov, aggDist, selectedWeekIdxs, readTokens, makeScale, fmt, fmtK,
@@ -32,8 +33,9 @@ const state: State = {
 
 const SEP = '\u0001';
 const flowKey = (o: string, d: string) => o + SEP + d;
-// Flow → cumulative (0). Stock → latest round (last index), never summed across rounds.
-const defaultPeriod = (c: CountryPayload) => (c.metric_type === 'stock' ? c.weeks.length - 1 : 0);
+// Flow → last 4 weeks (or all, if shorter). Stock → latest round, never summed across rounds.
+const defaultPeriod = (c: CountryPayload) => (c.metric_type === 'stock' ? c.weeks.length - 1 : c.weeks.length >= 4 ? 4 : 0);
+const dashed = new PathStyleExtension({ dash: true });
 
 let DATA: AppData;
 let C: CountryPayload;
@@ -402,6 +404,19 @@ function mapLayers() {
       lineWidthUnits: 'pixels', getLineWidth: 1,
       updateTriggers: { getFillColor: [tokens], getLineColor: [tokens] },
     }),
+    // district lines of the surrounding governorates, dashed so they read as context
+    new GeoJsonLayer({
+      id: 'dist-context', data: contextDistricts(G), pickable: false, stroked: true, filled: false,
+      getLineColor: rgba(tokens.ink2, tokens.dark ? 170 : 160), lineWidthUnits: 'pixels', getLineWidth: 1.1,
+      getDashArray: [5, 3], dashJustified: true, extensions: [dashed],
+      updateTriggers: { getLineColor: [tokens] },
+    } as any),
+    // governorate borders on top of the dashed district lines
+    new GeoJsonLayer({
+      id: 'dist-neighbor-outline', data: neighbors, pickable: false, stroked: true, filled: false,
+      getLineColor: rgba(tokens.ink2, tokens.dark ? 170 : 150), lineWidthUnits: 'pixels', getLineWidth: 1.4,
+      updateTriggers: { getLineColor: [tokens] },
+    }),
     // land base for the drilled governorate, so districts without data aren't holes
     new GeoJsonLayer({
       id: 'dist-base', data: govFeature(G), pickable: false, stroked: false, filled: true,
@@ -425,6 +440,11 @@ function mapLayers() {
 // Stable FeatureCollections per country+gov so hover-driven layer rebuilds keep the same
 // data reference and deck.gl skips re-parsing.
 const fcCache = new Map<string, any>();
+function contextDistricts(G: string) {
+  const key = C.iso + ':' + state.country + ':d:' + G;
+  if (!fcCache.has(key)) fcCache.set(key, { type: 'FeatureCollection', features: (C.adm2?.features ?? []).filter((f) => f.properties.g !== G) });
+  return fcCache.get(key);
+}
 function neighborsFor(G: string) {
   const key = C.iso + ':' + state.country + ':n:' + G;
   if (!fcCache.has(key)) fcCache.set(key, { type: 'FeatureCollection', features: C.geo.features.filter((f) => f.properties.pc !== G) });
@@ -508,7 +528,10 @@ function onClick(info: any) {
   if (state.pinKey) { state.pinKey = null; refreshHighlights(); }
   const pc: string | undefined = info.object?.properties?.pc;
   const id: string | undefined = info.layer?.id;
-  if (!pc) return;
+  if (!pc) {                                       // empty map → back to the whole country
+    if (state.level === 'dist') goUp(); else fitCountry();
+    return;
+  }
   if (state.level === 'gov' || id === 'dist-neighbors') drill(pc);
 }
 
@@ -538,7 +561,10 @@ function showTip(html: string, info: any) {
 }
 function hideTip() { const tip = $('tip'); tip.classList.remove('on'); tip.setAttribute('aria-hidden', 'true'); }
 
-const people = (v: number) => (C.hh_to_people > 1 ? `<span class="tip-ppl">≈ ${fmtK(v * C.hh_to_people)} people</span>` : '');
+// People: 'reported' when the source publishes individuals, otherwise an estimate from households.
+const reported = () => C.people_basis === 'reported';
+const approx = () => (reported() ? '' : '≈');
+const people = (v: number) => (C.hh_to_people > 1 ? `<span class="tip-ppl">${approx()}${approx() ? ' ' : ''}${fmtK(v * C.hh_to_people)} people</span>` : '');
 function flowTip(key: string): string {
   const [o, d] = key.split(SEP);
   const v = o === d
@@ -609,7 +635,7 @@ function updatePanels(selSet: Set<number>) {
   const flowWord = C.metric_type === 'flow' ? 'displaced' : 'IDPs (present)';
   const kpis = [
     { v: fmtK(total), n: `${C.unit} ${flowWord}`, cls: 'cyan' },
-    ...(mult > 1 ? [{ v: `≈${fmtK(total * mult)}`, n: 'people (indicative)', cls: 'accent' }] : []),
+    ...(mult > 1 ? [{ v: `${approx()}${fmtK(total * mult)}`, n: reported() ? 'people (IOM-reported)' : 'people (estimated)', cls: 'accent' }] : []),
     ...(top && top.value > 0 ? [{ v: top.name, n: `top destination · ${fmtK(top.value)}`, cls: 'name' }] : []),
     ...(state.level === 'gov' && conflict > 0
       ? [{ v: `${Math.round((conflict / Math.max(1, total)) * 100)}%`, n: 'conflict-driven', cls: 'red' }]
@@ -617,11 +643,11 @@ function updatePanels(selSet: Set<number>) {
   ].slice(0, 4);
   $('kpis').innerHTML = kpis.map((k) => `<div class="kpi ${k.cls}"><div class="v" title="${k.v}">${k.v}</div><div class="n">${k.n}</div></div>`).join('');
 
-  $('flows').innerHTML = sankeySVG(flowPairs, C.unit, mult, (oPc) => rgbCss(originColor(oPc)));
+  $('flows').innerHTML = sankeySVG(flowPairs, C.unit, mult, (oPc) => rgbCss(originColor(oPc)), reported() ? '' : '~');
   wireSankey();
 
   $('trend').innerHTML = trendSVG(C, selSet);
-  $('bars').innerHTML = barsHTML(barItems, mult);
+  $('bars').innerHTML = barsHTML(barItems, mult, reported() ? '' : '~');
   wireBars();
   $('barsSub').textContent = areasActive > 8 ? `top 8 of ${areasActive}` : `${areasActive} ${areasActive === 1 ? 'area' : 'areas'}`;
   $('trendSub').textContent = C.metric_type === 'flow' ? `${C.weeks.length} weeks` : `${C.weeks.length} rounds`;
@@ -673,8 +699,11 @@ function updateChrome() {
   $('flowSub').textContent = state.level === 'gov'
     ? (flow ? 'governorate → governorate' : 'origin → present area')
     : 'into ' + nameOf(state.selGov!);
-  $('srcNote').innerHTML = `Source: IOM DTM${flow ? ' — Rapid Displacement Tracking' : ' — DTM API'}. `
-    + `Boundaries: geoBoundaries. ${flow && C.hh_to_people > 1 ? 'People = households × ' + C.hh_to_people + ' (indicative).' : ''}`;
+  const pplNote = !(flow && C.hh_to_people > 1) ? ''
+    : reported() ? `People = individuals as reported by IOM (${C.hh_to_people} per household on average).`
+    : `People = households × ${C.hh_to_people} (estimated; this dataset records households only).`;
+  $('srcNote').innerHTML = `Source: IOM DTM — ${flow ? (C.label ?? 'Rapid Displacement Tracking') : 'DTM API'}. `
+    + `Boundaries: geoBoundaries. ${pplNote}`;
 
   updateRefreshPill();
   buildPeriod(flow);
